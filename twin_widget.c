@@ -69,10 +69,10 @@ _twin_widget_paint_shape (twin_widget_t *widget,
 			  twin_coord_t	bottom,
 			  twin_fixed_t	radius)
 {
-    twin_pixmap_t	*pixmap = widget->window->pixmap;
+    twin_pixmap_t	*pixmap = widget->widget.window->pixmap;
     
     if (shape == TwinShapeRectangle)
-	twin_fill (pixmap, widget->background, TWIN_SOURCE, 
+	twin_fill (pixmap, widget->widget.background, TWIN_SOURCE, 
 		   left, top, right, bottom);
     else
     {
@@ -80,7 +80,7 @@ _twin_widget_paint_shape (twin_widget_t *widget,
 						  right, bottom, radius);
 	if (path)
 	{
-	    twin_paint_path (pixmap, widget->background, path);
+	    twin_paint_path (pixmap, widget->widget.background, path);
 	    twin_path_destroy (path);
 	}
     }
@@ -89,9 +89,9 @@ _twin_widget_paint_shape (twin_widget_t *widget,
 static void
 _twin_widget_paint (twin_widget_t *widget)
 {
-    _twin_widget_paint_shape (widget, widget->shape, 0, 0, 
+    _twin_widget_paint_shape (widget, widget->widget.shape, 0, 0, 
 			      _twin_widget_width (widget), 
-			      _twin_widget_height (widget), widget->radius);
+			      _twin_widget_height (widget), widget->widget.radius);
 }
 
 twin_dispatch_result_t
@@ -99,22 +99,22 @@ _twin_widget_dispatch (twin_widget_t *widget, twin_event_t *event)
 {
     switch (event->kind) {
     case TwinEventQueryGeometry:
-	widget->layout = TWIN_FALSE;
-	if (widget->copy_geom)
+	widget->widget.layout = TWIN_FALSE;
+	if (widget->widget.copy_geom)
 	{
-	    twin_widget_t   *copy = widget->copy_geom;
-	    if (copy->layout)
-		(*copy->dispatch) (copy, event);
-	    widget->preferred = copy->preferred;
+	    twin_widget_t   *copy = widget->widget.copy_geom;
+	    if (copy->widget.layout)
+		(*copy->widget.dispatch) (copy, event);
+	    widget->widget.preferred = copy->widget.preferred;
 	    return TwinDispatchDone;
 	}
 	break;
     case TwinEventConfigure:
-	widget->extents = event->u.configure.extents;
+	widget->widget.extents = event->u.configure.extents;
 	break;
     case TwinEventPaint:
 	_twin_widget_paint (widget);
-	widget->paint = TWIN_FALSE;
+	widget->widget.paint = TWIN_FALSE;
 	break;
     default:
 	break;
@@ -133,37 +133,38 @@ _twin_widget_init (twin_widget_t	*widget,
     {
 	twin_widget_t   **prev;
 
-	for (prev = &parent->children; *prev; prev = &(*prev)->next);
-	widget->next = *prev;
+	for (prev = &parent->box.children; *prev; prev = &(*prev)->widget.next);
+	widget->widget.next = *prev;
 	*prev = widget;
 	window = parent->widget.window;
     }
     else
-	widget->next = NULL;
-    widget->window = window;
-    widget->parent = parent;
-    widget->copy_geom = NULL;
-    widget->paint = TWIN_TRUE;
-    widget->layout = TWIN_TRUE;
-    widget->want_focus = TWIN_FALSE;
-    widget->background = 0x00000000;
-    widget->extents.left = widget->extents.top = 0;
-    widget->extents.right = widget->extents.bottom = 0;
-    widget->preferred = preferred;
-    widget->dispatch = dispatch;
-    widget->shape = TwinShapeRectangle;
-    widget->radius = twin_int_to_fixed (12);
+	widget->widget.next = NULL;
+    widget->widget.window = window;
+    widget->widget.parent = parent;
+    widget->widget.copy_geom = NULL;
+    widget->widget.paint = TWIN_TRUE;
+    widget->widget.layout = TWIN_TRUE;
+    widget->widget.want_focus = TWIN_FALSE;
+    widget->widget.background = 0x00000000;
+    widget->widget.extents.left = widget->widget.extents.top = 0;
+    widget->widget.extents.right = widget->widget.extents.bottom = 0;
+    widget->widget.preferred = preferred;
+    widget->widget.dispatch = dispatch;
+    widget->widget.shape = TwinShapeRectangle;
+    widget->widget.radius = twin_int_to_fixed (12);
+    widget->widget.closure = NULL;
 }
 
 void
 _twin_widget_queue_paint (twin_widget_t   *widget)
 {
-    while (widget->parent)
+    while (widget->widget.parent)
     {
-	if (widget->paint)
+	if (widget->widget.paint)
 	    return;
-	widget->paint = TWIN_TRUE;
-	widget = &widget->parent->widget;
+	widget->widget.paint = TWIN_TRUE;
+	widget = (twin_widget_t *) widget->widget.parent;
     }
     _twin_toplevel_queue_paint (widget);
 }
@@ -171,13 +172,13 @@ _twin_widget_queue_paint (twin_widget_t   *widget)
 void
 _twin_widget_queue_layout (twin_widget_t   *widget)
 {
-    while (widget->parent)
+    while (widget->widget.parent)
     {
-	if (widget->layout)
+	if (widget->widget.layout)
 	    return;
-	widget->layout = TWIN_TRUE;
-	widget->paint = TWIN_TRUE;
-	widget = &widget->parent->widget;
+	widget->widget.layout = TWIN_TRUE;
+	widget->widget.paint = TWIN_TRUE;
+	widget = (twin_widget_t *) widget->widget.parent;
     }
     _twin_toplevel_queue_layout (widget);
 }
@@ -213,7 +214,7 @@ _twin_widget_bevel (twin_widget_t   *widget,
     twin_fixed_t	w = twin_int_to_fixed (_twin_widget_width (widget));
     twin_fixed_t	h = twin_int_to_fixed (_twin_widget_height (widget));
     twin_argb32_t	top_color, bot_color;
-    twin_pixmap_t	*pixmap = widget->window->pixmap;
+    twin_pixmap_t	*pixmap = widget->widget.window->pixmap;
     
     if (path)
     {
@@ -266,13 +267,13 @@ twin_widget_create (twin_box_t	    *parent,
     preferred.stretch_width = stretch_width;
     preferred.stretch_height = stretch_height;
     _twin_widget_init (widget, parent, 0, preferred, _twin_widget_dispatch);
-    widget->background = background;
+    widget->widget.background = background;
     return widget;
 }
 		    
 void
 twin_widget_set (twin_widget_t *widget, twin_argb32_t background)
 {
-    widget->background = background;
+    widget->widget.background = background;
     _twin_widget_queue_paint (widget);
 }

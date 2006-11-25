@@ -27,12 +27,16 @@
 
 #include <twin.h>
 
-typedef struct _twin_demoline {
-    twin_widget_t   widget;
+typedef struct _twin_demoline_part {
     twin_point_t    points[2];
     int		    which;
     twin_fixed_t    line_width;
     twin_cap_t	    cap_style;
+} twin_demoline_part_t;
+
+typedef struct _twin_demoline {
+    twin_widget_part_t	    widget;
+    twin_demoline_part_t    demoline;
 } twin_demoline_t;
 
 void

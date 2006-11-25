@@ -513,9 +513,9 @@ _twin_toplevel_dispatch (twin_widget_t *widget, twin_event_t *event);
 
 void
 _twin_toplevel_init (twin_toplevel_t	    *toplevel,
-		     twin_dispatch_proc_t   dispatch,
 		     twin_window_t	    *window,
-		     const char		    *name);
+		     twin_box_dir_t	    dir,
+		     twin_dispatch_proc_t   dispatch);
 
 void
 _twin_toplevel_queue_paint (twin_widget_t *widget);

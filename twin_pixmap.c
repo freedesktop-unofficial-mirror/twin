@@ -276,8 +276,8 @@ twin_pixmap_move (twin_pixmap_t *pixmap, twin_coord_t x, twin_coord_t y)
 twin_bool_t
 twin_pixmap_dispatch (twin_pixmap_t *pixmap, twin_event_t *event)
 {
-    if (pixmap->window)
-	return twin_window_dispatch (pixmap->window, event);
+    if (pixmap->toplevel)
+	return _twin_toplevel_dispatch ((twin_widget_t *) pixmap->toplevel, event) == TwinDispatchDone;
     return TWIN_FALSE;
 }
 

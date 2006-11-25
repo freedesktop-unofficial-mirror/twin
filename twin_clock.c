@@ -130,7 +130,7 @@ _twin_clock_face (twin_clock_t *clock)
 	twin_path_empty (path);
 	twin_path_rotate (path, twin_degrees_to_angle (-11) + TWIN_ANGLE_90);
 	twin_path_set_font_size (path, D(0.5));
-	twin_path_set_font_style (path, TWIN_TEXT_UNHINTED|TWIN_TEXT_OBLIQUE);
+	twin_path_set_font_style (path, TwinStyleUnhinted|TwinStyleOblique);
 	twin_text_metrics_utf8 (path, label, &metrics);
 	height = metrics.ascent + metrics.descent;
 	width = metrics.right_side_bearing - metrics.left_side_bearing;
@@ -147,7 +147,7 @@ _twin_clock_face (twin_clock_t *clock)
     }
 
     twin_path_set_font_size (path, D(0.2));
-    twin_path_set_font_style (path, TWIN_TEXT_UNHINTED);
+    twin_path_set_font_style (path, TwinStyleUnhinted);
 
     for (m = 1; m <= 60; m++)
     {
@@ -219,7 +219,7 @@ static twin_time_t
 _twin_clock_timeout (twin_time_t now, void *closure)
 {
     twin_clock_t   *clock = closure;
-    _twin_widget_queue_paint (&clock->widget);
+    _twin_widget_queue_paint ((twin_widget_t *) clock);
     return _twin_clock_interval ();
 }
 
@@ -246,8 +246,8 @@ _twin_clock_init (twin_clock_t		*clock,
 		  twin_dispatch_proc_t	dispatch)
 {
     static const twin_widget_layout_t	preferred = { 0, 0, 1, 1 };
-    _twin_widget_init (&clock->widget, parent, 0, preferred, dispatch);
-    clock->timeout = twin_set_timeout (_twin_clock_timeout,
+    _twin_widget_init ((twin_widget_t *) clock, parent, 0, preferred, dispatch);
+    clock->clock.timeout = twin_set_timeout (_twin_clock_timeout,
 				       _twin_clock_interval(),
 				       clock);
 }
@@ -264,10 +264,12 @@ twin_clock_create (twin_box_t *parent)
 void
 twin_clock_start (twin_screen_t *screen, const char *name, int x, int y, int w, int h)
 {
-    twin_toplevel_t *toplevel = twin_toplevel_create (screen, TWIN_ARGB32,
-						      TwinWindowApplication,
-						      x, y, w, h, name);
-    twin_clock_t    *clock = twin_clock_create (&toplevel->box);
+    twin_window_t   *window = twin_window_create (screen, name,
+						  TWIN_ARGB32,
+						  TwinWindowApplication,
+						  x, y, w, h);
+    twin_toplevel_t *toplevel = window->toplevel;
+    twin_clock_t    *clock = twin_clock_create (toplevel);
     (void) clock;
-    twin_toplevel_show (toplevel);
+    twin_window_show (window);
 }

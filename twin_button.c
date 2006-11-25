@@ -29,9 +29,9 @@
 static void
 _twin_button_paint (twin_button_t *button)
 {
-    _twin_widget_bevel (&button->label.widget, 
+    _twin_widget_bevel ((twin_widget_t *) button,
 			_twin_button_bw(button),
-			button->active);
+			button->button.active);
 }
 
 static void
@@ -40,54 +40,56 @@ _twin_button_set_label_offset (twin_button_t *button)
     twin_fixed_t    bf = _twin_button_bw (button);
     twin_fixed_t    bh = bf / 2;
 
-    if (button->active)
+    if (button->button.active)
 	button->label.offset.y = button->label.offset.x = 0;
     else
 	button->label.offset.y = button->label.offset.x = -bh;
-    _twin_widget_queue_paint (&button->label.widget);
+    _twin_widget_queue_paint ((twin_widget_t *) button);
 }
 
 twin_dispatch_result_t
 _twin_button_dispatch (twin_widget_t *widget, twin_event_t *event)
 {
     twin_button_t    *button = (twin_button_t *) widget;
+    twin_event_t    ev;
 
     if (_twin_label_dispatch (widget, event) == TwinDispatchDone)
 	return TwinDispatchDone;
+
     switch (event->kind) {
     case TwinEventPaint:
 	_twin_button_paint (button);
 	break;
     case TwinEventButtonDown:
-	button->pressed = TWIN_TRUE;
-	button->active = TWIN_TRUE;
+	button->button.pressed = TWIN_TRUE;
+	button->button.active = TWIN_TRUE;
 	_twin_button_set_label_offset (button);
-	if (button->signal)
-	    (*button->signal) (button, TwinButtonSignalDown, button->closure);
+	ev.kind = TwinEventActivate;
+	(*button->widget.dispatch) ((twin_widget_t *) button, &ev);
 	return TwinDispatchDone;
 	break;
     case TwinEventMotion:
-	if (button->pressed)
+	if (button->button.pressed)
 	{
-	    twin_bool_t	active = _twin_widget_contains (&button->label.widget,
+	    twin_bool_t	active = _twin_widget_contains ((twin_widget_t *) button,
 							event->u.pointer.x,
 							event->u.pointer.y);
-	    if (active != button->active)
+	    if (active != button->button.active)
 	    {
-		button->active = active;
+		button->button.active = active;
 		_twin_button_set_label_offset (button);
 	    }
 	}
 	return TwinDispatchDone;
 	break;
     case TwinEventButtonUp:
-	button->pressed = TWIN_FALSE;
-	if (button->active)
+	button->button.pressed = TWIN_FALSE;
+	if (button->button.active)
 	{
-	    button->active = TWIN_FALSE;
+	    button->button.active = TWIN_FALSE;
 	    _twin_button_set_label_offset (button);
-	    if (button->signal)
-		(*button->signal) (button, TwinButtonSignalUp, button->closure);
+	    ev.kind = TwinEventDeactivate;
+	    (*button->widget.dispatch) ((twin_widget_t *) button, &ev);
 	}
 	return TwinDispatchDone;
 	break;
@@ -106,12 +108,10 @@ _twin_button_init (twin_button_t	*button,
 		   twin_style_t		font_style,
 		   twin_dispatch_proc_t	dispatch)
 {
-    _twin_label_init (&button->label, parent, value,
+    _twin_label_init ((twin_label_t *) button, parent, value,
 		      foreground, font_size, font_style, dispatch);
-    button->pressed = TWIN_FALSE;
-    button->active = TWIN_FALSE;
-    button->signal = NULL;
-    button->closure = NULL;
+    button->button.pressed = TWIN_FALSE;
+    button->button.active = TWIN_FALSE;
     _twin_button_set_label_offset (button);
 }
 

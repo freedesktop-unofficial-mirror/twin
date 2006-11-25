@@ -22,8 +22,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <twin.h>
-
 #ifndef _TWIN_CALC_H_
 #define _TWIN_CALC_H_
 

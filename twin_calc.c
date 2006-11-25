@@ -82,11 +82,11 @@ static const char *twin_calc_labels[] = {
 };
 
 #define TWIN_CALC_VALUE_SIZE	twin_int_to_fixed(29)
-#define TWIN_CALC_VALUE_STYLE	TWIN_TEXT_ROMAN
+#define TWIN_CALC_VALUE_STYLE	TwinStyleRoman
 #define TWIN_CALC_VALUE_FG	0xff000000
 #define TWIN_CALC_VALUE_BG	0x80808080
 #define TWIN_CALC_BUTTON_SIZE	twin_int_to_fixed(15)
-#define TWIN_CALC_BUTTON_STYLE	TWIN_TEXT_BOLD
+#define TWIN_CALC_BUTTON_STYLE	TwinStyleBold
 #define TWIN_CALC_BUTTON_FG	0xff000000
 #define TWIN_CALC_BUTTON_BG	0xc0808080
 
@@ -143,18 +143,19 @@ _twin_calc_digit (twin_calc_t *calc, int digit)
     _twin_calc_update_value (calc);
 }
 
-static void
-_twin_calc_button_signal (twin_button_t		*button,
-			  twin_button_signal_t	signal,
-			  void			*closure)
+static twin_dispatch_result_t
+_twin_calc_button_dispatch (twin_widget_t   *widget,
+			    twin_event_t    *event)
 {
-    twin_calc_t	*calc = closure;
+    twin_button_t   *button = (twin_button_t *) widget;
+    twin_calc_t	*calc = button->widget.closure;
     int		i;
     int		a, b;
 
-    if (signal != TwinButtonSignalDown) return;
+    if (event->kind != TwinEventActivate) 
+	return _twin_button_dispatch (widget, event);
     i = _twin_calc_button_to_id (calc, button);
-    if (i < 0) return;
+    if (i < 0) return TwinDispatchDone;
     switch (i) {
     case TWIN_CALC_PLUS:
     case TWIN_CALC_MINUS:
@@ -192,6 +193,7 @@ _twin_calc_button_signal (twin_button_t		*button,
 	_twin_calc_digit (calc, i);
 	break;
     }
+    return TwinDispatchDone;
 }
 
 void
@@ -200,19 +202,19 @@ twin_calc_start (twin_screen_t *screen, const char *name, int x, int y, int w, i
     twin_calc_t	*calc = malloc (sizeof (twin_calc_t));
     int		i, j;
 
-    calc->toplevel = twin_toplevel_create (screen, 
-					   TWIN_ARGB32,
-					   TwinWindowApplication,
-					   x, y, w, h, name);
-    calc->display = twin_label_create (&calc->toplevel->box,
+    calc->window = twin_window_create (screen, name, TWIN_ARGB32,
+				       TwinWindowApplication,
+				       x, y, w, h);
+    calc->toplevel = calc->window->toplevel;
+    calc->display = twin_label_create (calc->toplevel,
 				       "0",
 				       TWIN_CALC_VALUE_FG,
 				       TWIN_CALC_VALUE_SIZE,
 				       TWIN_CALC_VALUE_STYLE);
-    twin_widget_set (&calc->display->widget, TWIN_CALC_VALUE_BG);
-    calc->display->align = TwinAlignRight;
+    twin_widget_set ((twin_widget_t *) calc->display, TWIN_CALC_VALUE_BG);
+    calc->display->label.align = TwinAlignRight;
     calc->display->widget.shape = TwinShapeLozenge;
-    calc->keys = twin_box_create (&calc->toplevel->box, TwinBoxHorz);
+    calc->keys = twin_box_create (calc->toplevel, TwinBoxHorz);
     for (i = 0; i < TWIN_CALC_COLS; i++)
     {
 	calc->cols[i] = twin_box_create (calc->keys, TwinBoxVert);
@@ -224,13 +226,13 @@ twin_calc_start (twin_screen_t *screen, const char *name, int x, int y, int w, i
 						   TWIN_CALC_BUTTON_FG,
 						   TWIN_CALC_BUTTON_SIZE,
 						   TWIN_CALC_BUTTON_STYLE);
-	    twin_widget_set (&calc->buttons[b]->label.widget,
+	    twin_widget_set ((twin_widget_t *) calc->buttons[b],
 			     TWIN_CALC_BUTTON_BG);
-	    calc->buttons[b]->signal = _twin_calc_button_signal;
-	    calc->buttons[b]->closure = calc;
+	    calc->buttons[b]->widget.dispatch = _twin_calc_button_dispatch;
+	    calc->buttons[b]->widget.closure = calc;
 /*	    calc->buttons[b]->label.widget.shape = TwinShapeLozenge; */
 	    if (i || j)
-		calc->buttons[b]->label.widget.copy_geom = &calc->buttons[calc_layout[0][0]]->label.widget;
+		calc->buttons[b]->widget.copy_geom = (twin_widget_t *) calc->buttons[calc_layout[0][0]];
 	}
     }
 	    
@@ -238,5 +240,5 @@ twin_calc_start (twin_screen_t *screen, const char *name, int x, int y, int w, i
 	calc->stack[i] = 0;
     calc->pending_delete = TWIN_TRUE;
     calc->pending_op = 0;
-    twin_toplevel_show (calc->toplevel);
+    twin_window_show (calc->window);
 }

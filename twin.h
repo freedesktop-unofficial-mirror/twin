@@ -36,7 +36,6 @@ typedef uint32_t    twin_argb32_t;
 typedef uint32_t    twin_ucs4_t;
 typedef int	    twin_bool_t;
 typedef int16_t	    twin_coord_t;
-typedef int16_t	    twin_style_t;
 typedef int16_t	    twin_count_t;
 typedef int16_t	    twin_keysym_t;
 typedef int32_t	    twin_area_t;
@@ -82,7 +81,8 @@ typedef union _twin_pointer {
     twin_argb32_t   *argb32;
 } twin_pointer_t;
 
-typedef struct _twin_window twin_window_t;
+typedef struct _twin_window	twin_window_t;
+typedef struct _twin_box twin_toplevel_t;
 
 /*
  * A rectangular array of pixels
@@ -118,10 +118,9 @@ typedef struct _twin_pixmap {
      */
     twin_pointer_t		p;
     /*
-     * When representing a window, this point
-     * refers to the window object
+     * The widget tree (if any)
      */
-    twin_window_t		*window;
+    twin_toplevel_t		*toplevel;
 } twin_pixmap_t;
 
 /*
@@ -150,11 +149,15 @@ typedef struct _twin_screen {
     /*
      * One of them receives all key events
      */
-    twin_pixmap_t	*active;
+    twin_pixmap_t	*key_focus;
     /*
      * pointer down for this window
      */
-    twin_pixmap_t	*pointer;
+    twin_pixmap_t	*pointer_grab;
+    /*
+     * pointer inside this window
+     */
+    twin_pixmap_t	*pointer_in;
     /*
      * Output size
      */
@@ -230,6 +233,14 @@ typedef struct _twin_matrix {
 
 typedef struct _twin_path twin_path_t;
 
+typedef enum _twin_style {
+    TwinStyleRoman = 0,
+    TwinStyleBold = 1,
+    TwinStyleOblique = 2,
+    TwinStyleBoldOblique = 3,
+    TwinStyleUnhinted = 4,
+} twin_style_t;
+    
 typedef enum _twin_cap {
     TwinCapRound,
     TwinCapButt,
@@ -264,6 +275,7 @@ typedef struct _twin_text_metrics {
 typedef enum _twin_event_kind {
     TwinEventButtonDown, TwinEventButtonUp, TwinEventMotion,
     TwinEventKeyDown, TwinEventKeyUp, TwinEventUcs4,
+    TwinEventEnter, TwinEventLeave,
     TwinEventActivate, TwinEventDeactivate,
     TwinEventPaint,
     TwinEventShow,
@@ -316,22 +328,6 @@ typedef twin_bool_t (*twin_event_func_t) (twin_window_t	    *window,
 
 typedef void	    (*twin_destroy_func_t) (twin_window_t   *window);
 
-struct _twin_window {
-    twin_screen_t	*screen;
-    twin_pixmap_t	*pixmap;
-    twin_window_style_t	style;
-    twin_rect_t		client;
-    twin_rect_t		damage;
-    twin_bool_t		client_grab;
-    twin_bool_t		want_focus;
-    void		*client_data;
-    char		*name;
-    
-    twin_draw_func_t	draw;
-    twin_event_func_t	event;
-    twin_destroy_func_t	destroy;
-};
-
 /*
  * Icons
  */
@@ -376,11 +372,11 @@ typedef struct _twin_file	twin_file_t;
 typedef struct _twin_widget twin_widget_t;
 typedef struct _twin_box    twin_box_t;
 
-#define _twin_widget_width(w)	(((twin_widget_t *)(w))->extents.right - \
-				 ((twin_widget_t *)(w))->extents.left)
+#define _twin_widget_width(w)	((w)->widget.extents.right - \
+				 (w)->widget.extents.left)
 
-#define _twin_widget_height(w)	(((twin_widget_t *)(w))->extents.bottom - \
-				 ((twin_widget_t *)(w))->extents.top)
+#define _twin_widget_height(w)	((w)->widget.extents.bottom - \
+				 (w)->widget.extents.top)
 
 typedef enum _twin_box_dir {
     TwinBoxHorz, TwinBoxVert
@@ -409,7 +405,7 @@ typedef enum _twin_shape {
     TwinShapeEllipse,
 } twin_shape_t;
 
-struct _twin_widget {
+typedef struct _twin_widget_part {
     twin_window_t	    *window;
     twin_widget_t	    *next;
     twin_box_t		    *parent;
@@ -423,52 +419,53 @@ struct _twin_widget {
     twin_widget_layout_t    preferred;
     twin_shape_t	    shape;
     twin_fixed_t	    radius;
+    void		    *closure;
+} twin_widget_part_t;
+
+struct _twin_widget {
+    twin_widget_part_t	    widget;
 };
 
-struct _twin_box {
-    twin_widget_t	widget;
+typedef struct _twin_box_part {
     twin_box_dir_t	dir;
     twin_widget_t	*children;
-    twin_widget_t	*button_down;
-    twin_widget_t	*focus;
-};
+    twin_widget_t	*key_focus;
+    twin_widget_t	*pointer_grab;
+} twin_box_part_t;
 
-typedef struct _twin_toplevel {
-    twin_box_t		box;
-} twin_toplevel_t;
+struct _twin_box {
+    twin_widget_part_t	widget;
+    twin_box_part_t	box;
+};
 
 typedef enum _twin_align {
     TwinAlignLeft, TwinAlignCenter, TwinAlignRight
 } twin_align_t;
 
-typedef struct _twin_label {
-    twin_widget_t	widget;
+typedef struct _twin_label_part {
     char		*label;
     twin_argb32_t	foreground;
     twin_fixed_t	font_size;
     twin_style_t	font_style;
     twin_point_t	offset;
     twin_align_t	align;
+} twin_label_part_t;
+
+typedef struct _twin_label {
+    twin_widget_part_t	widget;
+    twin_label_part_t	label;
 } twin_label_t;
 
-typedef enum _twin_button_signal {
-    TwinButtonSignalDown,   /* sent when button pressed */
-    TwinButtonSignalUp,	    /* send when button released inside widget */
-} twin_button_signal_t;
-
-typedef struct _twin_button twin_button_t;
-
-typedef void	(*twin_button_signal_proc_t) (twin_button_t	    *button,
-					      twin_button_signal_t  signal,
-					      void		    *closure);
-
-struct _twin_button {
-    twin_label_t		label;
+typedef struct _twin_button_part {
     twin_bool_t			pressed;
     twin_bool_t			active;
-    twin_button_signal_proc_t	signal;
-    void			*closure;
-};
+} twin_button_part_t;
+
+typedef struct _twin_button {
+    twin_widget_part_t	widget;
+    twin_label_part_t	label;
+    twin_button_part_t	button;
+} twin_button_t;
 
 typedef enum _twin_scroll_signal {
     TwinScrollSignalUpArrow,
@@ -484,8 +481,20 @@ typedef void	(*twin_scroll_signal_proc_t) (twin_scroll_t	    *scroll,
 					      twin_scroll_signal_t  signal,
 					      void		    *closure);
 
-struct _twin_scroll {
-    twin_widget_t		widget;
+struct _twin_window {
+    twin_screen_t	*screen;
+    twin_pixmap_t	*pixmap;
+    twin_toplevel_t	*toplevel;
+    twin_window_style_t	style;
+    twin_rect_t		client;
+    twin_bool_t		want_focus;
+    void		*client_data;
+    
+    twin_label_t	*label;
+
+    twin_draw_func_t	draw;
+    twin_event_func_t	event;
+    twin_destroy_func_t	destroy;
 };
 
 /*
@@ -506,6 +515,18 @@ twin_button_create (twin_box_t	    *parent,
 		   twin_argb32_t    foreground,
 		   twin_fixed_t	    font_size,
 		   twin_style_t	    font_style);
+
+twin_dispatch_result_t
+_twin_button_dispatch (twin_widget_t *widget, twin_event_t *event);
+
+void
+_twin_button_init (twin_button_t	*button,
+		   twin_box_t		*parent,
+		   const char		*value,
+		   twin_argb32_t	foreground,
+		   twin_fixed_t		font_size,
+		   twin_style_t		font_style,
+		   twin_dispatch_proc_t	dispatch);
 
 /*
  * twin_convolve.c
@@ -596,10 +617,6 @@ twin_fixed_div (twin_fixed_t a, twin_fixed_t b);
 twin_bool_t
 twin_has_ucs4 (twin_ucs4_t ucs4);
     
-#define TWIN_TEXT_ROMAN	    0
-#define TWIN_TEXT_BOLD	    1
-#define TWIN_TEXT_OBLIQUE   2
-#define TWIN_TEXT_UNHINTED  4
 
 void
 twin_path_ucs4_stroke (twin_path_t *path, twin_ucs4_t ucs4);
@@ -962,10 +979,10 @@ void
 twin_screen_update (twin_screen_t *screen);
 
 void
-twin_screen_set_active (twin_screen_t *screen, twin_pixmap_t *pixmap);
+twin_screen_set_key_focus (twin_screen_t *screen, twin_pixmap_t *pixmap);
 
 twin_pixmap_t *
-twin_screen_get_active (twin_screen_t *screen);
+twin_screen_get_key_focus (twin_screen_t *screen);
 
 void
 twin_screen_set_background (twin_screen_t *screen, twin_pixmap_t *pixmap);
@@ -1016,16 +1033,8 @@ twin_now (void);
  */
 twin_toplevel_t *
 twin_toplevel_create (twin_screen_t	    *screen,
-		      twin_format_t	    format,
-		      twin_window_style_t   style,
-		      twin_coord_t	    x,
-		      twin_coord_t	    y,
-		      twin_coord_t	    width,
-		      twin_coord_t	    height,
-		      const char	    *name);
-
-void
-twin_toplevel_show (twin_toplevel_t *toplevel);
+		      twin_window_t	    *window,
+		      twin_box_dir_t	    dir);
 
 /*
  * twin_trig.c
@@ -1061,6 +1070,7 @@ twin_widget_set (twin_widget_t *widget, twin_argb32_t background);
 
 twin_window_t *
 twin_window_create (twin_screen_t	*screen,
+		    const char		*name,
 		    twin_format_t	format,
 		    twin_window_style_t style,
 		    twin_coord_t	x,

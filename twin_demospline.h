@@ -29,12 +29,16 @@
 
 #define NPT 4
 
-typedef struct _twin_demospline {
-    twin_widget_t   widget;
+typedef struct _twin_demospline_part {
     twin_point_t    points[NPT];
     int		    which;
     twin_fixed_t    line_width;
     twin_cap_t	    cap_style;
+} twin_demospline_part_t;
+
+typedef struct _twin_demospline {
+    twin_widget_part_t	    widget;
+    twin_demospline_part_t  demospline;
 } twin_demospline_t;
 
 void

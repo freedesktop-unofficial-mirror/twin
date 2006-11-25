@@ -51,11 +51,11 @@ _twin_demoline_paint (twin_demoline_t *demoline)
     twin_path_t	*path;
 
     path = twin_path_create ();
-    twin_path_set_cap_style (path, demoline->cap_style);
-    twin_path_move (path, demoline->points[0].x, demoline->points[0].y);
-    twin_path_draw (path, demoline->points[1].x, demoline->points[1].y);
+    twin_path_set_cap_style (path, demoline->demoline.cap_style);
+    twin_path_move (path, demoline->demoline.points[0].x, demoline->demoline.points[0].y);
+    twin_path_draw (path, demoline->demoline.points[1].x, demoline->demoline.points[1].y);
     twin_paint_stroke (_twin_demoline_pixmap(demoline), 0xff000000, path,
-		       demoline->line_width);
+		       demoline->demoline.line_width);
     twin_path_set_cap_style (path, TwinCapButt);
     twin_paint_stroke (_twin_demoline_pixmap(demoline), 0xffff0000, path,
 		       twin_int_to_fixed (2));
@@ -65,11 +65,11 @@ _twin_demoline_paint (twin_demoline_t *demoline)
 static twin_dispatch_result_t
 _twin_demoline_update_pos (twin_demoline_t *demoline, twin_event_t *event)
 {
-    if (demoline->which < 0)
+    if (demoline->demoline.which < 0)
 	return TwinDispatchContinue;
-    demoline->points[demoline->which].x = twin_int_to_fixed (event->u.pointer.x);
-    demoline->points[demoline->which].y = twin_int_to_fixed (event->u.pointer.y);
-    _twin_widget_queue_paint (&demoline->widget);
+    demoline->demoline.points[demoline->demoline.which].x = twin_int_to_fixed (event->u.pointer.x);
+    demoline->demoline.points[demoline->demoline.which].y = twin_int_to_fixed (event->u.pointer.y);
+    _twin_widget_queue_paint ((twin_widget_t *) demoline);
     return TwinDispatchDone;
 }
 
@@ -81,8 +81,8 @@ _twin_demoline_hit (twin_demoline_t *demoline, twin_fixed_t x, twin_fixed_t y)
     int	i;
 
     for (i = 0; i < 2; i++)
-	if (twin_fixed_abs (x - demoline->points[i].x) < demoline->line_width / 2 &&
-	    twin_fixed_abs (y - demoline->points[i].y) < demoline->line_width / 2)
+	if (twin_fixed_abs (x - demoline->demoline.points[i].x) < demoline->demoline.line_width / 2 &&
+	    twin_fixed_abs (y - demoline->demoline.points[i].y) < demoline->demoline.line_width / 2)
 	    return i;
     return -1;
 }
@@ -99,7 +99,7 @@ _twin_demoline_dispatch (twin_widget_t *widget, twin_event_t *event)
 	_twin_demoline_paint (demoline);
 	break;
     case TwinEventButtonDown:
-	demoline->which = _twin_demoline_hit (demoline,
+	demoline->demoline.which = _twin_demoline_hit (demoline,
 					      twin_int_to_fixed (event->u.pointer.x),
 					      twin_int_to_fixed (event->u.pointer.y));
 	return _twin_demoline_update_pos (demoline, event);
@@ -108,10 +108,10 @@ _twin_demoline_dispatch (twin_widget_t *widget, twin_event_t *event)
 	return _twin_demoline_update_pos (demoline, event);
 	break;
     case TwinEventButtonUp:
-	if (demoline->which < 0)
+	if (demoline->demoline.which < 0)
 	    return TwinDispatchContinue;
 	_twin_demoline_update_pos (demoline, event);
-	demoline->which = -1;
+	demoline->demoline.which = -1;
 	return TwinDispatchDone;
 	break;
     default:
@@ -126,14 +126,14 @@ _twin_demoline_init (twin_demoline_t		*demoline,
 		  twin_dispatch_proc_t	dispatch)
 {
     static const twin_widget_layout_t	preferred = { 0, 0, 1, 1 };
-    _twin_widget_init (&demoline->widget, parent, 0, preferred, dispatch);
-    twin_widget_set (&demoline->widget, 0xffffffff);
-    demoline->line_width = twin_int_to_fixed (30);
-    demoline->cap_style = TwinCapProjecting;
-    demoline->points[0].x = twin_int_to_fixed (50);
-    demoline->points[0].y = twin_int_to_fixed (50);
-    demoline->points[1].x = twin_int_to_fixed (100);
-    demoline->points[1].y = twin_int_to_fixed (100);
+    _twin_widget_init ((twin_widget_t *) demoline, parent, 0, preferred, dispatch);
+    twin_widget_set ((twin_widget_t *) demoline, 0xffffffff);
+    demoline->demoline.line_width = twin_int_to_fixed (30);
+    demoline->demoline.cap_style = TwinCapProjecting;
+    demoline->demoline.points[0].x = twin_int_to_fixed (50);
+    demoline->demoline.points[0].y = twin_int_to_fixed (50);
+    demoline->demoline.points[1].x = twin_int_to_fixed (100);
+    demoline->demoline.points[1].y = twin_int_to_fixed (100);
 }
     
 twin_demoline_t *
@@ -148,10 +148,11 @@ twin_demoline_create (twin_box_t *parent)
 void
 twin_demoline_start (twin_screen_t *screen, const char *name, int x, int y, int w, int h)
 {
-    twin_toplevel_t *toplevel = twin_toplevel_create (screen, TWIN_ARGB32,
-						      TwinWindowApplication,
-						      x, y, w, h, name);
-    twin_demoline_t    *demoline = twin_demoline_create (&toplevel->box);
+    twin_window_t   *window = twin_window_create (screen, name, TWIN_ARGB32,
+						  TwinWindowApplication,
+						  x,y,w,h);
+    twin_toplevel_t *toplevel = window->toplevel;
+    twin_demoline_t    *demoline = twin_demoline_create (toplevel);
     (void) demoline;
-    twin_toplevel_show (toplevel);
+    twin_window_show (window);
 }

@@ -27,9 +27,13 @@
 
 #include <twin.h>
 
-typedef struct _twin_clock {
-    twin_widget_t   widget;
+typedef struct _twin_clock_part {
     twin_timeout_t  *timeout;
+} twin_clock_part_t;
+
+typedef struct _twin_clock {
+    twin_widget_part_t	widget;
+    twin_clock_part_t	clock;
 } twin_clock_t;
 
 void

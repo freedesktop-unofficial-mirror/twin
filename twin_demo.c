@@ -75,7 +75,7 @@ twin_example_start (twin_screen_t *screen, int x, int y, int w, int h)
 static void
 twin_line_start (twin_screen_t *screen, int x, int y, int w, int h)
 {
-    twin_window_t   *window = twin_window_create (screen, TWIN_ARGB32,
+    twin_window_t   *window = twin_window_create (screen, "line", TWIN_ARGB32,
 						  TwinWindowApplication,
 						  x, y, w, h);
     twin_pixmap_t   *pixmap = window->pixmap;
@@ -86,8 +86,6 @@ twin_line_start (twin_screen_t *screen, int x, int y, int w, int h)
     twin_fill (pixmap, 0xffffffff, TWIN_SOURCE, 
 	       0, 0, w, h);
 
-    twin_window_set_name (window, "line");
-    
     for (fy = 0; fy < 150; fy += 40)
     {
 	twin_path_move (stroke, D(-150), -D(fy));
@@ -102,7 +100,8 @@ twin_line_start (twin_screen_t *screen, int x, int y, int w, int h)
 static void
 twin_circletext_start (twin_screen_t *screen, int x, int y, int w, int h)
 {
-    twin_window_t   *window = twin_window_create (screen, TWIN_ARGB32,
+    twin_window_t   *window = twin_window_create (screen, "circletext", 
+						  TWIN_ARGB32,
 						  TwinWindowApplication,
 						  x, y, w, h);
     int		    wid = window->client.right - window->client.left;
@@ -118,7 +117,7 @@ twin_circletext_start (twin_screen_t *screen, int x, int y, int w, int h)
 	       0, 0, wid, hei);
     twin_window_set_name (window, "circletext");
     
-    twin_path_set_font_style (path, TWIN_TEXT_UNHINTED);
+    twin_path_set_font_style (path, TwinStyleUnhinted);
     twin_path_circle (pen, 0, 0, D (1));
     
     twin_path_translate (path, D(200), D(200));
@@ -147,7 +146,8 @@ twin_circletext_start (twin_screen_t *screen, int x, int y, int w, int h)
 static void
 twin_quickbrown_start (twin_screen_t *screen, int x, int y, int w, int h)
 {
-    twin_window_t   *window = twin_window_create (screen, TWIN_ARGB32,
+    twin_window_t   *window = twin_window_create (screen, "Quick Brown",
+						  TWIN_ARGB32,
 						  TwinWindowApplication,
 						  x, y, w, h);
     int		    wid = window->client.right - window->client.left;
@@ -196,7 +196,8 @@ twin_quickbrown_start (twin_screen_t *screen, int x, int y, int w, int h)
 static void
 twin_ascii_start (twin_screen_t *screen, int x, int y, int w, int h)
 {
-    twin_window_t   *window = twin_window_create (screen, TWIN_ARGB32,
+    twin_window_t   *window = twin_window_create (screen, "ASCII",
+						  TWIN_ARGB32,
 						  TwinWindowApplication,
 						  x, y, w, h);
     int		    wid = window->client.right - window->client.left;
@@ -250,7 +251,7 @@ twin_ascii_start (twin_screen_t *screen, int x, int y, int w, int h)
 static void
 twin_jelly_start (twin_screen_t *screen, int x, int y, int w, int h)
 {
-    twin_window_t   *window = twin_window_create (screen, TWIN_ARGB32,
+    twin_window_t   *window = twin_window_create (screen, "Jelly", TWIN_ARGB32,
 						  TwinWindowApplication,
 						  x, y, w, h);
     int		    wid = window->client.right - window->client.left;

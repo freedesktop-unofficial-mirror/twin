@@ -33,8 +33,50 @@
 #define TWIN_RESIZE_SIZE    ((TWIN_TITLE_HEIGHT + 4) / 5)
 #define TWIN_TITLE_BW	    ((TWIN_TITLE_HEIGHT + 11) / 12)
 
+static twin_dispatch_result_t
+_twin_window_label_dispatch (twin_widget_t *widget,
+			     twin_event_t   *event)
+{
+    twin_window_t   *window = widget->widget.window;
+    
+    if (_twin_label_dispatch (widget, event) == TwinDispatchDone)
+	return TwinDispatchDone;
+
+    /*
+     * simple window management
+     */
+    switch (event->kind) {
+    case TwinEventButtonDown:
+	twin_window_show (window);
+	window->screen->button_x = event->u.pointer.x;
+	window->screen->button_y = event->u.pointer.y;
+	return TwinDispatchDone;
+    case TwinEventButtonUp:
+	window->screen->button_x = -1;
+	window->screen->button_y = -1;
+    case TwinEventMotion:
+	if (window->screen->button_x >= 0)
+	{
+	    twin_coord_t    x, y;
+
+	    x = event->u.pointer.screen_x - window->screen->button_x;
+	    y = event->u.pointer.screen_y - window->screen->button_y;
+	    twin_window_configure (window, 
+				   window->style,
+				   x, y,
+				   window->pixmap->width,
+				   window->pixmap->height);
+	}
+	return TwinDispatchDone;
+    default:
+	break;
+    }
+    return TwinDispatchContinue;
+}
+
 twin_window_t *
 twin_window_create (twin_screen_t	*screen,
+		    const char		*name,
 		    twin_format_t	format,
 		    twin_window_style_t style,
 		    twin_coord_t	x,
@@ -44,6 +86,8 @@ twin_window_create (twin_screen_t	*screen,
 {
     twin_window_t   *window = malloc (sizeof (twin_window_t));
     twin_coord_t    left, top, right, bottom;
+    twin_box_t	    *titlebar;
+    twin_button_t   *menu, *min, *max;
 
     if (!window) return NULL;
     window->screen = screen;
@@ -70,17 +114,47 @@ twin_window_create (twin_screen_t	*screen,
     window->client.right = width - right;
     window->client.bottom = height - bottom;
     window->pixmap = twin_pixmap_create (format, width, height);
-    twin_pixmap_clip (window->pixmap,
-		      window->client.left, window->client.top,
-		      window->client.right, window->client.bottom);
-    window->pixmap->window = window;
+    window->toplevel = twin_toplevel_create (screen, window, TwinBoxVert);
+    switch (window->style) {
+    case TwinWindowApplication:
+	titlebar = twin_box_create (window->toplevel,
+				    TwinBoxHorz);
+	menu = twin_button_create (titlebar, "Menu",
+				   0xff202020,
+				   twin_int_to_fixed (10),
+				   TwinStyleRoman);
+	menu->widget.preferred.stretch_width = 0;
+	menu->widget.preferred.stretch_height = 0;
+	twin_widget_set ((twin_widget_t *) menu, TWIN_ACTIVE_BG);
+	window->label = twin_label_create (titlebar, name,
+					   0xffffffff,
+					   twin_int_to_fixed (10),
+					   TwinStyleOblique);
+	twin_widget_set ((twin_widget_t *) window->label, TWIN_ACTIVE_BG);
+	window->label->widget.dispatch = _twin_window_label_dispatch;
+	min = twin_button_create (titlebar, "Min",
+				  0xff202020,
+				  twin_int_to_fixed (10),
+				  TwinStyleRoman);
+	twin_widget_set ((twin_widget_t *) min, TWIN_ACTIVE_BG);
+	min->widget.preferred.stretch_width = 0;
+	min->widget.preferred.stretch_height = 0;
+	max = twin_button_create (titlebar, "Max",
+				  0xff202020,
+				  twin_int_to_fixed (10),
+				  TwinStyleRoman);
+	twin_widget_set ((twin_widget_t *) max, TWIN_ACTIVE_BG);
+	max->widget.preferred.stretch_width = 0;
+	max->widget.preferred.stretch_height = 0;
+	break;
+    default:
+	break;
+    }
+    
+    window->pixmap->toplevel = window->toplevel;
     twin_pixmap_move (window->pixmap, x, y);
-    window->damage.left = window->damage.right = 0;
-    window->damage.top = window->damage.bottom = 0;
-    window->client_grab = TWIN_FALSE;
     window->want_focus = TWIN_FALSE;
     window->client_data = 0;
-    window->name = 0;
     
     window->draw = 0;
     window->event = 0;
@@ -93,7 +167,6 @@ twin_window_destroy (twin_window_t *window)
 {
     twin_window_hide (window);
     twin_pixmap_destroy (window->pixmap);
-    if (window->name) free (window->name);
     free (window);
 }
 
@@ -102,6 +175,13 @@ twin_window_show (twin_window_t *window)
 {
     if (window->pixmap != window->screen->top)
 	twin_pixmap_show (window->pixmap, window->screen, window->screen->top);
+    if (window->toplevel)
+    {
+	twin_event_t	ev;
+
+	ev.kind = TwinEventShow;
+	(*window->toplevel->widget.dispatch) ((twin_widget_t *) window->toplevel, &ev);
+    }
 }
 
 void
@@ -132,7 +212,7 @@ twin_window_configure (twin_window_t	    *window,
 	int		i;
 
 	window->pixmap = twin_pixmap_create (old->format, width, height);
-	window->pixmap->window = window;
+	window->pixmap->toplevel = window->toplevel;
 	twin_pixmap_move (window->pixmap, x, y);
 	if (old->screen)
 	    twin_pixmap_show (window->pixmap, window->screen, old);
@@ -145,8 +225,10 @@ twin_window_configure (twin_window_t	    *window,
     }
     if (x != window->pixmap->x || y != window->pixmap->y)
 	twin_pixmap_move (window->pixmap, x, y);
+#if 0
     if (need_repaint)
 	twin_window_draw (window);
+#endif
     twin_pixmap_enable_update (window->pixmap);
 }
 
@@ -172,12 +254,13 @@ void
 twin_window_set_name (twin_window_t	*window,
 		      const char	*name)
 {
-    if (window->name) free (window->name);
-    window->name = malloc (strlen (name) + 1);
-    if (window->name) strcpy (window->name, name);
-    twin_window_draw (window);
+    twin_label_set (window->label, name,
+		    0xffffffff,
+		    twin_int_to_fixed (10),
+		    TwinStyleOblique);
 }
 
+#if 0
 static void
 twin_window_frame (twin_window_t *window)
 {
@@ -327,90 +410,4 @@ twin_window_draw (twin_window_t *window)
     if (window->draw)
 	(*window->draw) (window);
 }
-
-twin_bool_t
-twin_window_dispatch (twin_window_t *window, twin_event_t *event)
-{
-    twin_event_t    ev = *event;
-    twin_bool_t	    delegate = TWIN_TRUE;
-
-    switch (ev.kind) {
-    case TwinEventButtonDown:
-	if (window->client.left <= ev.u.pointer.x &&
-	    ev.u.pointer.x < window->client.right &&
-	    window->client.top  <= ev.u.pointer.y &&
-	    ev.u.pointer.y < window->client.bottom)
-	{
-	    delegate = TWIN_TRUE;
-	    window->client_grab = TWIN_TRUE;
-	    ev.u.pointer.x -= window->client.left;
-	    ev.u.pointer.y -= window->client.top;
-	}
-	else
-	    delegate = TWIN_FALSE;
-	break;
-    case TwinEventButtonUp:
-	if (window->client_grab)
-	{
-	    delegate = TWIN_TRUE;
-	    window->client_grab = TWIN_FALSE;
-	    ev.u.pointer.x -= window->client.left;
-	    ev.u.pointer.y -= window->client.top;
-	}
-	else
-	    delegate = TWIN_FALSE;
-	break;
-    case TwinEventMotion:
-	if (window->client_grab ||
-	    (window->client.left <= ev.u.pointer.x &&
-	     ev.u.pointer.x < window->client.right &&
-	     window->client.top  <= ev.u.pointer.y &&
-	     ev.u.pointer.y < window->client.bottom))
-	{
-	    delegate = TWIN_TRUE;
-	    ev.u.pointer.x -= window->client.left;
-	    ev.u.pointer.y -= window->client.top;
-	}
-	else
-	    delegate = TWIN_FALSE;
-	break;
-    default:
-	break;
-    }
-    if (!window->event)
-	delegate = TWIN_FALSE;
-    
-    if (delegate && (*window->event) (window, &ev))
-	return TWIN_TRUE;
-    
-    /*
-     * simple window management
-     */
-    switch (event->kind) {
-    case TwinEventButtonDown:
-	twin_window_show (window);
-	window->screen->button_x = event->u.pointer.x;
-	window->screen->button_y = event->u.pointer.y;
-	return TWIN_TRUE;
-    case TwinEventButtonUp:
-	window->screen->button_x = -1;
-	window->screen->button_y = -1;
-    case TwinEventMotion:
-	if (window->screen->button_x >= 0)
-	{
-	    twin_coord_t    x, y;
-
-	    x = event->u.pointer.screen_x - window->screen->button_x;
-	    y = event->u.pointer.screen_y - window->screen->button_y;
-	    twin_window_configure (window, 
-				   window->style,
-				   x, y,
-				   window->pixmap->width,
-				   window->pixmap->height);
-	}
-	return TWIN_TRUE;
-    default:
-	break;
-    }
-    return TWIN_FALSE;
-}
+#endif

@@ -50,7 +50,7 @@ main (int argc, char **argv)
 #if 0
     twin_demo_start (x11->screen, "Demo", 100, 100, 400, 400);
 #endif
-#if 0
+#if 1
     twin_text_start (x11->screen,  "Gettysburg Address", 0, 0, 300, 300);
 #endif
 #if 0

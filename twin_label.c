@@ -30,13 +30,13 @@ _twin_label_query_geometry (twin_label_t *label)
     twin_path_t		*path = twin_path_create ();
     twin_text_metrics_t	m;
     
-    label->widget.preferred.width = twin_fixed_to_int (label->font_size) * 2;
-    label->widget.preferred.height = twin_fixed_to_int (label->font_size) * 2;
+    label->widget.preferred.width = twin_fixed_to_int (label->label.font_size) * 2;
+    label->widget.preferred.height = twin_fixed_to_int (label->label.font_size) * 2;
     if (path)
     {
-	twin_path_set_font_size (path, label->font_size);
-	twin_path_set_font_style (path, label->font_style);
-	twin_text_metrics_utf8 (path, label->label, &m);
+	twin_path_set_font_size (path, label->label.font_size);
+	twin_path_set_font_style (path, label->label.font_style);
+	twin_text_metrics_utf8 (path, label->label.label, &m);
 	label->widget.preferred.width += twin_fixed_to_int (m.width);
 	twin_path_destroy (path);
     }
@@ -56,25 +56,25 @@ _twin_label_paint (twin_label_t *label)
 	twin_fixed_t	hf = twin_int_to_fixed (h);
 	twin_fixed_t	x, y;
 
-	twin_path_set_font_size (path, label->font_size);
-	twin_path_set_font_style (path, label->font_style);
-	twin_text_metrics_utf8 (path, label->label, &m);
-	y = (hf - (m.ascent + m.descent)) / 2 + m.ascent + label->offset.y;
-	switch (label->align) {
+	twin_path_set_font_size (path, label->label.font_size);
+	twin_path_set_font_style (path, label->label.font_style);
+	twin_text_metrics_utf8 (path, label->label.label, &m);
+	y = (hf - (m.ascent + m.descent)) / 2 + m.ascent + label->label.offset.y;
+	switch (label->label.align) {
 	case TwinAlignLeft:
-	    x = label->font_size / 2;
+	    x = label->label.font_size / 2;
 	    break;
 	case TwinAlignCenter:
 	    x = (wf - m.width) / 2;
 	    break;
 	case TwinAlignRight:
-	    x = wf - label->font_size / 2 - m.width;
+	    x = wf - label->label.font_size / 2 - m.width;
 	    break;
 	}
-	x += label->offset.x;
+	x += label->label.offset.x;
 	twin_path_move (path, x, y);
-	twin_path_utf8 (path, label->label);
-	twin_paint_path (label->widget.window->pixmap, label->foreground, path);
+	twin_path_utf8 (path, label->label.label);
+	twin_paint_path (label->widget.window->pixmap, label->label.foreground, path);
 	twin_path_destroy (path);
     }
 }
@@ -112,16 +112,16 @@ twin_label_set (twin_label_t	*label,
 
 	if (new)
 	{
-	    if (label->label)
-		free (label->label);
-	    label->label = new;
-	    strcpy (label->label, value);
+	    if (label->label.label)
+		free (label->label.label);
+	    label->label.label = new;
+	    strcpy (label->label.label, value);
 	}
     }
-    label->font_size = font_size;
-    label->font_style = font_style;
-    label->foreground = foreground;
-    _twin_widget_queue_layout (&label->widget);
+    label->label.font_size = font_size;
+    label->label.font_style = font_style;
+    label->label.foreground = foreground;
+    _twin_widget_queue_layout ((twin_widget_t *) label);
 }
 
 void
@@ -134,11 +134,11 @@ _twin_label_init (twin_label_t		*label,
 		  twin_dispatch_proc_t	dispatch)
 {
     static const twin_widget_layout_t	preferred = { 0, 0, 1, 1 };
-    _twin_widget_init (&label->widget, parent, 0, preferred, dispatch);
-    label->label = NULL;
-    label->offset.x = 0;
-    label->offset.y = 0;
-    label->align = TwinAlignCenter;
+    _twin_widget_init ((twin_widget_t *) label, parent, 0, preferred, dispatch);
+    label->label.label = NULL;
+    label->label.offset.x = 0;
+    label->label.offset.y = 0;
+    label->label.align = TwinAlignCenter;
     twin_label_set (label, value, foreground, font_size, font_style);
 }
 

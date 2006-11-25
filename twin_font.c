@@ -61,7 +61,7 @@ _twin_text_compute_info (twin_path_t *path, twin_text_info_t *info)
     /*
      * Only hint axis aligned text 
      */
-    if ((path->state.font_style & TWIN_TEXT_UNHINTED) == 0 &&
+    if ((path->state.font_style & TwinStyleUnhinted) == 0 &&
 	((path->state.matrix.m[0][1] == 0 &&
 	  path->state.matrix.m[1][0] == 0) ||
 	 (path->state.matrix.m[0][0] == 0 &&
@@ -112,7 +112,7 @@ _twin_text_compute_info (twin_path_t *path, twin_text_info_t *info)
 	    info->pen.y = TWIN_FIXED_HALF;
 	info->margin.x = info->pen.x;
 	info->margin.y = info->pen.y;
-	if (path->state.font_style & TWIN_TEXT_BOLD)
+	if (path->state.font_style & TwinStyleBold)
 	{
 	    twin_fixed_t    pen_x_add = SNAPH(info->pen.x >> 1);
 	    twin_fixed_t    pen_y_add = SNAPH(info->pen.y >> 1);
@@ -140,7 +140,7 @@ _twin_text_compute_info (twin_path_t *path, twin_text_info_t *info)
 	info->scale.x = path->state.font_size;
 	info->scale.y = path->state.font_size;
 	
-	if (path->state.font_style & TWIN_TEXT_BOLD)
+	if (path->state.font_style & TwinStyleBold)
 	    info->pen.x = path->state.font_size / 16;
 	else
 	    info->pen.x = path->state.font_size / 24;
@@ -156,7 +156,7 @@ _twin_text_compute_info (twin_path_t *path, twin_text_info_t *info)
     info->pen_matrix.m[2][0] = 0; info->pen_matrix.m[2][1] = 0;
     twin_matrix_scale (&info->pen_matrix, info->pen.x, info->pen.y);
 	
-    if (path->state.font_style & TWIN_TEXT_OBLIQUE)
+    if (path->state.font_style & TwinStyleOblique)
     {
 	twin_matrix_t	m;
 	
